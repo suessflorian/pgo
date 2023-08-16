@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"pgo/internal/store/sqlite"
 	"syscall"
 	"time"
 
@@ -20,6 +21,13 @@ func main() {
 
 	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+
+	db, err := sqlite.New()
+	if err != nil {
+		logger.With("error", err).Error("failed to setup store")
+		os.Exit(1)
+	}
+	defer db.Close()
 
 	server := &http.Server{
 		Addr: ":8080",
@@ -52,9 +60,3 @@ func main() {
 	logger.Info("Successfully shutdown gracefully")
 	os.Exit(0)
 }
-
-// type profile struct {
-// 	tag        string
-// 	cpuProfile string
-// }
-

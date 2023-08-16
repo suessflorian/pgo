@@ -1,0 +1,4 @@
+CREATE TABLE profiles (
+    tag TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);

@@ -9,4 +9,5 @@ import (
 type Store interface {
 	Put(ctx context.Context, profile profile.Profile) error
 	Get(ctx context.Context, tag string) (*profile.Profile, error)
+	Close() error
 }
