@@ -20,7 +20,7 @@ import (
 
 func main() {
 	var (
-		logger = slog.New(slog.NewJSONHandler(os.Stderr, nil))
+		logger = slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 		ctx    = context.Background()
 	)
 
@@ -28,7 +28,11 @@ func main() {
 	defer stop()
 
 	emit, _ := pcap.Capture("example", pcap.WithLogger(logger)) // optionally handle setup err
-	defer func() { _ = emit(nil) }()                            // optionally handle emit err
+	defer func() {
+		if err := emit(nil); err != nil {
+			logger.WarnContext(ctx, "Failed to emit profile: "+err.Error())
+		}
+	}() // optionally handle emit err
 
 	server := &http.Server{
 		Addr: ":8081",

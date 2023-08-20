@@ -3,6 +3,8 @@ package pcapture
 import (
 	"context"
 	"fmt"
+	"io"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"runtime/pprof"
@@ -12,12 +14,12 @@ import (
 	"golang.org/x/exp/slog"
 )
 
-const server = "http://localhost:8080/publish"
+const server = "http://localhost:8080/profile"
 
 type Option func(cfg *config)
 
 // WithLogger returns an Option that sets a given logger to be used during the profile capture.
-// By default, errors are returned.
+// By default uses slog.Default().
 func WithLogger(logger *slog.Logger) Option {
 	return func(cfg *config) {
 		cfg.logger = logger
@@ -45,7 +47,7 @@ func Capture(tag string, opts ...Option) (emit func(ctx context.Context) error, 
 	if err := pprof.StartCPUProfile(f); err != nil {
 		return nil, fmt.Errorf("Error while creating CPU profile: %w", err)
 	}
-	cfg.logger.Info("Pprof CPU profiling")
+	cfg.logger.Info("CPU profiling via pprof")
 
 	var (
 		client = &http.Client{Timeout: 5 * time.Second}
@@ -59,8 +61,34 @@ func Capture(tag string, opts ...Option) (emit func(ctx context.Context) error, 
 			defer f.Close()
 			pprof.StopCPUProfile()
 
+			// Reset the file descriptor's position to the beginning of the file
+			_, err := f.Seek(0, 0)
+			if err != nil {
+				return
+			}
+
+			pr, pw := io.Pipe()
+			w := multipart.NewWriter(pw)
+
+			go func() {
+				defer pw.Close()
+				defer w.Close()
+
+				part, err := w.CreateFormFile("cpu_profile", "cpu_profile")
+				if err != nil {
+					cfg.logger.With("error", err.Error()).ErrorContext(ctx, "Failed to create a form file for cpu profile")
+					return
+				}
+
+				_, err = io.Copy(part, f)
+				if err != nil {
+					cfg.logger.With("error", err.Error()).ErrorContext(ctx, "Failed to write `cpu_profile` to form file")
+					return
+				}
+			}()
+
 			var req *http.Request
-			req, err = http.NewRequest(http.MethodPost, server+"/"+tag, f)
+			req, err = http.NewRequest(http.MethodPost, server+"/"+tag, pr)
 			if err != nil {
 				err = fmt.Errorf("Failed to assemble profile dump request: %w", err)
 				return
@@ -70,18 +98,23 @@ func Capture(tag string, opts ...Option) (emit func(ctx context.Context) error, 
 				req = req.WithContext(ctx)
 			}
 
-			var res *http.Response
-			res, err = client.Do(req)
+			// TODO: Check that we're actually sending all the right header.
+			req.Header.Set("Content-Type", w.FormDataContentType())
+
+			res, err := client.Do(req)
 			if err != nil {
 				err = fmt.Errorf("Failure during the sending of the profile dump: %w", err)
 				return
 			}
+			defer res.Body.Close()
+
+			cfg.logger.DebugContext(ctx, "Request sent to: "+req.URL.String())
 
 			if res.StatusCode != http.StatusOK {
 				err = fmt.Errorf("Unexpected status code response from profiling server: %d", res.StatusCode)
 			}
 
-			cfg.logger.Info("Successfully published profile")
+			cfg.logger.InfoContext(ctx, "Successfully published profile")
 		})
 
 		return err

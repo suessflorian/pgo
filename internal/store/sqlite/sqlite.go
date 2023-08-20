@@ -57,7 +57,6 @@ func (s *store) PutCPUProfile(ctx context.Context, tag string, profile io.Reader
 	if err != nil {
 		return err
 	}
-	fmt.Println(blob)
 
 	_, err = s.db.ExecContext(ctx, `
 		INSERT INTO profiles (tag, cpu_profile)
