@@ -1,17 +1,12 @@
-// This is an example client application that demonstrates the use of how
-// absence of explicit shutdown logic would be used with this profiler client package.
-// Instead just using a simpler ctx listening approach. This'd represent the
-// majority use case.
-
 package main
 
 import (
 	"context"
 	"errors"
+	pcap "github.com/suessflorian/pgo/pkg/pcapture"
 	"net/http"
 	"os"
 	"os/signal"
-	pcap "pgo/pkg/pcapture"
 	"syscall"
 	"time"
 

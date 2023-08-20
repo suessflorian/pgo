@@ -49,8 +49,8 @@ A simple implementation of the idea here, we spin up this central server.
 go run ./cmd/server/main.go
 ```
 
-We then have an example service `./cmd/example/main.go` that wants to benefit from this PGO, we hook up the client library, adding the `emit` firing to the callstack immediately. To bring this entire proof of concept into vision;
+We then have an example service `./examples/main.go` that wants to benefit from this PGO, we hook up the client library, adding the `emit` firing to the callstack immediately. To bring this entire proof of concept into vision;
 
 ```bash
-docker build --tag example -f Dockerfile.example . && docker run --publish 8081:8081 example
+docker build --tag example -f ./examples/Dockerfile . && docker run --publish 8081:8081 example
 ```

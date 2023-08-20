@@ -1,4 +1,4 @@
-module pgo
+module github.com/suessflorian/pgo
 
 go 1.21
 
