@@ -3,13 +3,14 @@ package server
 import (
 	"errors"
 	"fmt"
+	"github.com/suessflorian/pgo/internal/store"
 	"io"
 	"net/http"
-	"github.com/suessflorian/pgo/internal/store"
 	"strings"
 
 	"golang.org/x/exp/slog"
 )
+
 type server struct {
 	*http.Server
 
@@ -124,7 +125,11 @@ func (s *server) handleGet(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Println(tag)
 	profile, err := s.store.GetCPUProfile(ctx, tag)
-	if err != nil { // TODO: handle ErrNoProfile
+	if errors.Is(err, store.ErrNoProfile) {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	if err != nil {
 		s.handleUnknownError(w, r, err)
 		return
 	}

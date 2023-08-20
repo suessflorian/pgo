@@ -1,3 +1,18 @@
+// Package sqlite provides an implementation of the store interface using SQLite as the backend.
+//
+// SQLite is chosen for proof-of-concept purposes due to its simplicity and the ability to run as an
+// in-memory database, removing the need for additional setup like you would require with databases such as PostgreSQL.
+//
+// Limitations:
+// One significant limitation of this SQLite implementation is its memory consumption behavior.
+// Both when storing CPU profiles (`PutCPUProfile` method) or retrieving them (`GetCPUProfile` method),
+// the entire profile is loaded into memory. This can leads to some memory overhead, especially when dealing 
+// with large and many profiles. Such behavior is a result of the chosen SQLite package interaction.
+// Users looking for a more efficient, production-ready solution might want to consider other database backends
+// or an SQLite driver that supports streaming.
+//
+// It's essential to be cautious when using this package for larger datasets or in memory-constrained environments.
+
 package sqlite
 
 import (
@@ -8,6 +23,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+
+	types "github.com/suessflorian/pgo/internal/store"
 
 	_ "github.com/mattn/go-sqlite3"
 	// NOTE: also https://github.com/tailscale/sqlite as a simple driver
@@ -70,16 +87,13 @@ func (s *store) PutCPUProfile(ctx context.Context, tag string, profile io.Reader
 	return nil
 }
 
-// TODO: move to common package
-var ErrNoProfile = errors.New("no profile for given tag")
-
 // PutCPUProfile puts the entire set of bytes into memory before establishing a reader to
 // return. Limitation of the choosen package interaction.
 func (s *store) GetCPUProfile(ctx context.Context, tag string) (io.Reader, error) {
 	var cpuProfile []byte
 	err := s.db.QueryRowContext(ctx, `SELECT cpu_profile FROM profiles WHERE tag = ?;`, tag).Scan(&cpuProfile)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, ErrNoProfile
+		return nil, types.ErrNoProfile
 	}
 	if err != nil {
 		return nil, fmt.Errorf("Failed to retrieve profile for %q: %w", tag, err)

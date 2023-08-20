@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"errors"
 	"io"
 )
 
@@ -11,3 +12,5 @@ type Store interface {
 	GetCPUProfile(ctx context.Context, tag string) (io.Reader, error)
 	Close() error
 }
+
+var ErrNoProfile = errors.New("no profile for given tag")

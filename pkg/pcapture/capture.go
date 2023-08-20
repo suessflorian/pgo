@@ -98,7 +98,6 @@ func Capture(tag string, opts ...Option) (emit func(ctx context.Context) error, 
 				req = req.WithContext(ctx)
 			}
 
-			// TODO: Check that we're actually sending all the right header.
 			req.Header.Set("Content-Type", w.FormDataContentType())
 
 			res, err := client.Do(req)
