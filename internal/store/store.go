@@ -2,12 +2,12 @@ package store
 
 import (
 	"context"
-	"pgo/internal/profile"
+	"io"
 )
 
 // Store represents the bare minimum required for profile persistance
 type Store interface {
-	Put(ctx context.Context, profile profile.Profile) error
-	Get(ctx context.Context, tag string) (*profile.Profile, error)
+	PutCPUProfile(ctx context.Context, tag string, profile io.Reader) error
+	GetCPUProfile(ctx context.Context, tag string) (io.Reader, error)
 	Close() error
 }
