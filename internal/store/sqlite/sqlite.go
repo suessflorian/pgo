@@ -70,6 +70,7 @@ func (s *store) PutCPUProfile(ctx context.Context, tag string, profile io.Reader
 	return nil
 }
 
+// TODO: move to common package
 var ErrNoProfile = errors.New("no profile for given tag")
 
 // PutCPUProfile puts the entire set of bytes into memory before establishing a reader to

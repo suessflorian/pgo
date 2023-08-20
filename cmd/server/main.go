@@ -106,7 +106,7 @@ func (s *server) handlePost(w http.ResponseWriter, r *http.Request) {
 		s.handleUnknownError(w, r, err)
 		return
 	}
-	logger.With("tag", tag)
+	logger = logger.With("tag", tag)
 
 	reader, err := r.MultipartReader()
 	if err != nil {
@@ -144,10 +144,40 @@ func (s *server) handlePost(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) handleGet(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	defer s.logger.InfoContext(ctx, "Request served")
+	var (
+		ctx    = r.Context()
+		logger = s.logger.With("remote", r.RemoteAddr)
+	)
 
+	tag, err := parseRequestTag(r)
+	if err != nil {
+		if errors.Is(err, ErrNoTagSupplied) {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(ErrNoTagSupplied.Error()))
+			return
+		}
+		s.handleUnknownError(w, r, err)
+		return
+	}
+	logger = logger.With("tag", tag)
+
+	fmt.Println(tag)
+	profile, err := s.store.GetCPUProfile(ctx, tag)
+	if err != nil { // TODO: handle ErrNoProfile
+		s.handleUnknownError(w, r, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Disposition", "attachment; filename=default.pgo")
 	w.WriteHeader(http.StatusOK)
+
+	if _, err := io.Copy(w, profile); err != nil {
+		s.logger.ErrorContext(ctx, "Failed to stream profile", "error", err)
+		return
+	}
+
+	s.logger.InfoContext(ctx, "Request served")
 }
 
 func (s *server) handleUnknownError(w http.ResponseWriter, r *http.Request, err error) {
@@ -158,8 +188,5 @@ func (s *server) handleUnknownError(w http.ResponseWriter, r *http.Request, err 
 }
 
 func parseRequestTag(r *http.Request) (tag string, err error) {
-	if tag = r.URL.Path[1:]; strings.TrimSpace(tag) == "" {
-		return tag, ErrNoTagSupplied
-	}
-	return tag, nil
+	return strings.TrimPrefix(r.URL.Path, "/profile/"), nil
 }
